@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Smart Traffic Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#10151c; color:#fff; margin:0; padding:20px; }
+    h1 { margin-top:0; }
+    .wrap { display:flex; gap:20px; flex-wrap:wrap; }
+    img { width:640px; max-width:100%; border-radius:8px; }
+    .lanes { display:grid; grid-template-columns:repeat(2,160px); gap:12px; align-content:start; }
+    .lane { background:#1d2631; padding:14px; border-radius:8px; border:3px solid #c0392b; }
+    .lane.green { border-color:#27ae60; }
+    .count { font-size:32px; font-weight:bold; }
+    #alert { display:none; background:#c0392b; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; }
+    #status { background:#1d2631; padding:10px; border-radius:8px; margin-bottom:12px; }
+    .message { padding:10px; border-radius:6px; margin-bottom:10px; }
+    .message.error { background:#922b21; }
+    .message.success { background:#196f3d; }
+  </style>
+</head>
+<body>
+  <h1>Intelligent Traffic Management System</h1>
+  <p><a href="/analysis" style="color:#5dade2">Analysis</a> | <a href="/logout" style="color:#5dade2">Logout</a></p>
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="message {{ category }}">{{ message }}</div>
+  {% endfor %}
+  <form action="/upload" method="post" enctype="multipart/form-data" style="margin-bottom:12px">
+  <input type="file" name="video" accept="video/*" required>
+  <button>Upload and Analyze</button>
+</form>
+  <div id="status" role="status">Waiting for video processing to start.</div>
+  <div id="alert">AMBULANCE DETECTED - PRIORITY GREEN</div>
+  <div class="wrap">
+    <img src="/video-feed">
+    <div class="lanes" id="lanes"></div>
+  </div>
+  <script>
+    async function refresh() {
+      const response = await fetch("/api/stats");
+      if (!response.ok) throw new Error("Traffic status request failed.");
+      const s = await response.json();
+      const status = document.getElementById("status");
+      status.textContent = s.error || (s.status === "processing"
+        ? "Processing " + s.video
+        : "Detection " + s.status);
+      document.getElementById("alert").style.display = s.ambulance ? "block" : "none";
+      let html = "";
+      s.counts.forEach((c, i) => {
+        const g = (i === s.green);
+        html += `<div class="lane ${g ? "green" : ""}">
+          <div>Lane ${i + 1}</div>
+          <div class="count">${c}</div>
+          <div>${g ? "GREEN " + s.time_left + "s" : "RED"}</div></div>`;
+      });
+      document.getElementById("lanes").innerHTML = html;
+    }
+    async function refreshSafely() {
+      try {
+        await refresh();
+      } catch (error) {
+        document.getElementById("status").textContent = error.message;
+      }
+    }
+    setInterval(refreshSafely, 1000);
+    refreshSafely();
+  </script>
+</body>
+</html>

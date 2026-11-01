@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Traffic Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+ body{font-family:Arial;background:#10151c;color:#fff;padding:20px}
+ a{color:#5dade2} .card{background:#1d2631;padding:16px;border-radius:8px;margin-bottom:16px;max-width:900px}
+</style></head><body>
+<h1>Traffic Analysis</h1>
+<p><a href="/">Back to Dashboard</a> | <a href="/logout">Logout</a></p>
+<p><a href="/report.csv">Download Report (CSV)</a></p>
+<div class="card"><canvas id="chart"></canvas></div>
+<div class="card" id="summary"></div>
+<script>
+async function load(){
+  const data = await (await fetch("/api/history")).json();
+  const labels = data.map(d => d.ts);
+  const colors = ["#e74c3c","#3498db","#2ecc71","#f1c40f"];
+  const sets = [0,1,2,3].map(i => ({
+    label: "Lane " + (i+1), data: data.map(d => d.counts[i]),
+    borderColor: colors[i], tension: 0.3 }));
+  new Chart(document.getElementById("chart"), {type:"line", data:{labels, datasets:sets}});
+  const amb = data.filter(d => d.ambulance).length;
+  const total = data.reduce((s,d) => s + d.counts.reduce((a,b)=>a+b,0), 0);
+  const avg = data.length ? (total / data.length).toFixed(1) : 0;
+  document.getElementById("summary").innerHTML =
+    "Records shown: " + data.length + "<br>Average vehicles per record: " + avg +
+    "<br>Records with ambulance priority: " + amb;
+}
+load();
+</script></body></html>
